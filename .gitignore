@@ -1,0 +1,6 @@
+*_Runs/
+log/
+diagnostics/
+tmp/
+*.lock.f
+*.vvp
