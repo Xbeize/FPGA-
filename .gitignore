@@ -1,6 +1,7 @@
 *_Runs/
 log/
 diagnostics/
+candidate/
 tmp/
 *.lock.f
 *.vvp

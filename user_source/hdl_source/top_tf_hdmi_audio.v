@@ -49,6 +49,13 @@ wire de;
 wire [23:0] vout_data_raw;
 wire [23:0] vout_data;
 wire        display_valid;
+wire        switch_request;
+wire        black_ready;
+wire        switch_done_toggle;
+wire [4:0]  fade_brightness;
+wire [12:0] fade_red = vout_data_raw[23:16] * fade_brightness;
+wire [12:0] fade_green = vout_data_raw[15:8] * fade_brightness;
+wire [12:0] fade_blue = vout_data_raw[7:0] * fade_brightness;
 
 wire [3:0]  state_code;
 wire [6:0]  seg_data_0;
@@ -179,6 +186,9 @@ sd_card_bmp #(
     .bmp_width         (16'd640),
     .bmp_height        (16'd480),
     .display_valid     (display_valid),
+    .switch_request    (switch_request),
+    .black_ready       (black_ready),
+    .switch_done_toggle(switch_done_toggle),
 
     .write_finish_toggle(frame_write_toggle_mem),
     .write_buf_idx     (write_buf_idx),
@@ -237,8 +247,19 @@ video_delay video_delay_m0(
     .vout_data         (vout_data_raw)
 );
 
-// 首图提交前黑屏；提交后一直显示当前显示缓冲区内容
-assign vout_data = display_valid ? vout_data_raw : 24'd0;
+frame_fade_control u_frame_fade_control (
+    .pixel_clk(video_clk),
+    .rst(rst_all),
+    .vs(vs),
+    .player_active(display_valid_video_sync[1]),
+    .switch_request(switch_request),
+    .switch_done_toggle(switch_done_toggle),
+    .black_ready(black_ready),
+    .brightness(fade_brightness)
+);
+
+assign vout_data = display_valid ?
+    {fade_red[11:4], fade_green[11:4], fade_blue[11:4]} : 24'd0;
 
 frame_read_write #(
     .WRITE_V_FLIP     (1),

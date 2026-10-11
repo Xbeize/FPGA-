@@ -13,6 +13,9 @@ module sd_card_bmp #(
     input  [15:0]               bmp_height,
     output reg                  display_valid,
     output      [3:0]           state_code,
+    output reg                  switch_request,
+    input                       black_ready,
+    output reg                  switch_done_toggle,
 
     input                       write_finish_toggle,
     output reg [1:0]            write_buf_idx,
@@ -70,6 +73,7 @@ reg              load_abort;
 // bmp_ready 先表示“源文件读取/送 FIFO 完成”；真正切显示要等 write_finish_toggle 同步后
 reg              source_done_seen;
 reg              write_done_seen;
+reg [1:0]        black_ready_sync;
 
 // 同步 mem_clk 域的 write_finish_toggle
 reg [2:0]        wrfin_tgl_sync;
@@ -172,8 +176,12 @@ always @(posedge clk or posedge rst) begin
         source_done_seen      <= 1'b0;
         write_done_seen       <= 1'b0;
         display_valid         <= 1'b0;
+        black_ready_sync      <= 2'b00;
+        switch_request        <= 1'b0;
+        switch_done_toggle    <= 1'b0;
     end else begin
         wrfin_tgl_sync   <= {wrfin_tgl_sync[1:0], write_finish_toggle};
+        black_ready_sync <= {black_ready_sync[0], black_ready};
         scan_start_pulse <= 1'b0;
         load_start_pulse <= 1'b0;
         load_abort       <= 1'b0;
@@ -200,6 +208,8 @@ always @(posedge clk or posedge rst) begin
             source_done_seen      <= 1'b0;
             write_done_seen       <= 1'b0;
             display_valid         <= 1'b0;
+            switch_request        <= 1'b0;
+            switch_done_toggle    <= 1'b0;
         end else begin
             // 扫描阶段缓存前 4 张图的起始 sector
             if (scan_found_valid) begin
@@ -223,8 +233,8 @@ always @(posedge clk or posedge rst) begin
             if (load_busy && write_finish_pulse)
                 write_done_seen <= 1'b1;
 
-            // 只有“源图送完 + 整帧写完”都满足，才提交新图并切换显示缓冲区
-            if (load_busy && source_done_seen && write_done_seen) begin
+            // Keep the old frame visible while the next frame finishes loading.
+            if (load_busy && source_done_seen && write_done_seen && !switch_request && !display_valid) begin
                 load_busy             <= 1'b0;
                 load_timeout_cnt      <= 32'd0;
                 source_done_seen      <= 1'b0;
@@ -233,6 +243,21 @@ always @(posedge clk or posedge rst) begin
                 img_idx               <= load_idx;
                 display_valid         <= 1'b1;
                 first_image_committed <= 1'b1;
+            end else if (load_busy && source_done_seen && write_done_seen && !switch_request) begin
+                switch_request <= 1'b1;
+                load_timeout_cnt <= 32'd0;
+            end else if (load_busy && switch_request && black_ready_sync[1]) begin
+                load_busy             <= 1'b0;
+                switch_request        <= 1'b0;
+                switch_done_toggle    <= ~switch_done_toggle;
+                load_timeout_cnt      <= 32'd0;
+                source_done_seen      <= 1'b0;
+                write_done_seen       <= 1'b0;
+                disp_buf_idx          <= pending_buf_idx;
+                img_idx               <= load_idx;
+                first_image_committed <= 1'b1;
+            end else if (load_busy && switch_request) begin
+                load_timeout_cnt <= 32'd0;
             end else if (load_busy) begin
                 if (load_timeout_cnt > 32'd100_000_000) begin
                     // 超时（例如读到坏图或截断的文件导致死锁），强制释放 busy 以恢复按键响应
@@ -241,6 +266,7 @@ always @(posedge clk or posedge rst) begin
                     source_done_seen      <= 1'b0;
                     write_done_seen       <= 1'b0;
                     load_abort            <= 1'b1;
+                    switch_request        <= 1'b0;
                 end else begin
                     load_timeout_cnt <= load_timeout_cnt + 32'd1;
                 end
@@ -266,6 +292,7 @@ always @(posedge clk or posedge rst) begin
                 load_busy             <= 1'b0;
                 source_done_seen      <= 1'b0;
                 write_done_seen       <= 1'b0;
+                switch_request        <= 1'b0;
             end else begin
                 // 忙的时候也只记 1 次“下一张”请求，不会累积成连跳两张
                 if (key_next_press && scan_done && (img_found_count > 3'd0))
