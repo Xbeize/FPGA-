@@ -18,6 +18,20 @@ The user confirmed the transition bitstream works on the board. The previous
 non-transition release remains available at
 `release/hx4s20c_hdmi_player_pre_fade.bit`. The transition build's final
 setup/hold WNS is +0.265/+0.003 ns; external I/O delays remain unconstrained.
+## Status OSD candidate
+
+`release/hx4s20c_hdmi_player_osd_unverified.bit` adds a frame-locked status
+overlay at the upper-left of the image. Four 8x8 character cells show the
+current image number, `A` or `E` for automatic/manual mode, and the reader
+state code. OSD pixels are yellow during normal operation and red for reader
+state 4. The overlay reconstructs pixel coordinates from the existing
+`hs/vs/de` signals and adds no video pipeline stage.
+
+The OSD candidate passes local glyph/coordinate simulation and TD timing
+analysis, but has not been tested on the board. The transition release bit
+remains the official fallback until the OSD candidate is confirmed visually.
+Its final setup/hold WNS is +0.435/+0.003 ns. The OSD candidate SHA-256 is
+`7B6DA8B8C551A3C4185BF52601947B0EADC0836779D4F49DB302072BAED362F7`.
 
 The player scans physical TF-card sectors 0 through 131071 for up to four
 640 x 480, 24-bit uncompressed BMP images. It uses SDRAM double buffering and
@@ -66,3 +80,4 @@ core, and HDL adapted from the supplied reference examples so that the TD
 project can be built. Their original copyright notices remain in place. No
 license for those third-party components is granted by this repository; check
 the vendor's terms before redistributing or reusing them elsewhere.
+

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Project Version="3" Minor="2" Path=".">
+<Project Version="3" Minor="2" Path="D:/BaiduNetdiskDownload/HX4S20_Contest_2025_9/2_DEMO/FPGA_Compitent/FPGA-">
     <Project_Created_Time></Project_Created_Time>
     <TD_Version>6.2.168116</TD_Version>
     <Name>hx4s20c_hdmi_player_v2</Name>

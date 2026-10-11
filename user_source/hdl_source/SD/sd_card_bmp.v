@@ -13,6 +13,8 @@ module sd_card_bmp #(
     input  [15:0]               bmp_height,
     output reg                  display_valid,
     output      [3:0]           state_code,
+    output      [1:0]           active_index,
+    output                      auto_enabled,
     output reg                  switch_request,
     input                       black_ready,
     output reg                  switch_done_toggle,
@@ -88,6 +90,8 @@ assign auto_tick  = (auto_cnt == (CLK_FREQ_HZ - 1));
 assign next_from_current = next_index_limited(img_idx, img_found_count);
 assign write_finish_pulse = wrfin_tgl_sync[2] ^ wrfin_tgl_sync[1];
 assign state_code = state_code_i;
+assign active_index = img_idx;
+assign auto_enabled = auto_play_en;
 
 key_press_debounce #(
     .CLK_FREQ_HZ (CLK_FREQ_HZ),

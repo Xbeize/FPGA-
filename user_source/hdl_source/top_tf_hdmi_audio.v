@@ -59,6 +59,8 @@ wire [12:0] fade_blue = vout_data_raw[7:0] * fade_brightness;
 
 wire [3:0]  state_code;
 wire [6:0]  seg_data_0;
+wire [1:0]  active_index;
+wire        auto_enabled;
 
 wire        video_read_req;
 wire        video_read_req_ack;
@@ -183,6 +185,8 @@ sd_card_bmp #(
     .key_next          (key1),
     .key_auto          (key2),
     .state_code        (state_code),
+    .active_index      (active_index),
+    .auto_enabled      (auto_enabled),
     .bmp_width         (16'd640),
     .bmp_height        (16'd480),
     .display_valid     (display_valid),
@@ -261,6 +265,21 @@ frame_fade_control u_frame_fade_control (
 assign vout_data = display_valid ?
     {fade_red[11:4], fade_green[11:4], fade_blue[11:4]} : 24'd0;
 
+wire [23:0] osd_vout_data;
+status_osd_24 u_status_osd_24 (
+    .clk          (video_clk),
+    .rst          (rst_all),
+    .hs           (hs),
+    .vs           (vs),
+    .de           (de),
+    .rgb_in       (vout_data),
+    .active_index (active_index),
+    .auto_enabled (auto_enabled),
+    .state_code   (state_code),
+    .rgb_out      (osd_vout_data),
+    .osd_active   ()
+);
+
 frame_read_write #(
     .WRITE_V_FLIP     (1),
     .FRAME_WIDTH      (640),
@@ -332,7 +351,7 @@ video_rgb_to_axis_640x480 u_video_rgb_to_axis_640x480(
     .I_rst         (rst_all),
     .I_vs          (vs),
     .I_de          (de),
-    .I_rgb         (vout_data),
+    .I_rgb         (osd_vout_data),
     .O_video_user  (axis_s_user),
     .O_video_valid (axis_s_valid),
     .O_video_last  (axis_s_last),
